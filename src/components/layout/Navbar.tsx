@@ -2,11 +2,13 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { useGSAP } from '@gsap/react'
+import gsap from 'gsap'
 
 const navLinks = [
   { href: '/',           label: 'Public Feed',  icon: '🌐' },
-  { href: '/search',     label: 'Search',       icon: '🔍' },
+  // { href: '/search',     label: 'Search',       icon: '🔍' },
   { href: '/dashboard',  label: 'My Snippets',  icon: '📋', auth: true },
   { href: '/snippets/create', label: 'New Snippet', icon: '✨', auth: true },
   { href: '/groups',     label: 'Groups',       icon: '👥', auth: true },
@@ -18,6 +20,16 @@ export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuthStore()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
+  const navRef = useRef<HTMLElement>(null)
+
+  useGSAP(() => {
+    gsap.from(navRef.current, {
+      y: -100,
+      opacity: 0,
+      duration: 0.8,
+      ease: 'power3.out'
+    })
+  }, { scope: navRef })
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,7 +39,7 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="navbar">
+    <nav className="navbar" ref={navRef}>
       {/* Brand */}
       <Link href="/" className="navbar-brand" style={{ marginRight: '16px' }}>
         ⚡ CodeClan
@@ -37,8 +49,9 @@ export default function Navbar() {
       <form className="search-bar" onSubmit={handleSearch}>
         <span className="search-icon">🔍</span>
         <input
+          suppressHydrationWarning
           type="text"
-          placeholder="Search snippets..."
+          placeholder="Search user & snippets..."
           value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
         />
@@ -52,19 +65,8 @@ export default function Navbar() {
           <Link
             key={link.href}
             href={link.href}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: 500,
-              color: pathname === link.href ? 'var(--primary)' : 'var(--text-secondary)',
-              background: pathname === link.href ? 'rgba(124,58,237,0.12)' : 'transparent',
-              textDecoration: 'none',
-              transition: 'all 0.15s',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
+            className={`sidebar-link ${pathname === link.href ? 'active' : ''}`}
+            style={{ borderRadius: '8px', padding: '8px 16px', borderLeft: 'none' }}
           >
             <span>{link.icon}</span>
             <span style={{ display: 'none' }} className="md-show">{link.label}</span>
@@ -81,19 +83,37 @@ export default function Navbar() {
               fontSize: '13px',
               fontWeight: 500,
               color: pathname === '/admin' ? 'var(--danger)' : 'var(--text-muted)',
-              background: pathname === '/admin' ? 'rgba(239,68,68,0.12)' : 'transparent',
+              background: pathname === '/admin' ? 'rgba(255,110,132,0.12)' : 'transparent',
               textDecoration: 'none',
+              marginLeft: '8px'
             }}
           >
-            🛡️
+            🛡️ Admin
           </Link>
         )}
       </div>
 
       {/* Auth Section */}
       {isAuthenticated ? (
-        <div style={{ position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: '12px' }}>
+          <Link
+            href="/"
+            className="btn btn-primary btn-sm"
+            style={{
+              fontFamily: 'var(--font-mono)',
+              background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
+              border: 'none',
+              boxShadow: '0 0 14px rgba(0,227,253,0.25)',
+              color: '#000',
+              fontWeight: 700,
+              letterSpacing: '0.5px'
+            }}
+          >
+            ⚡ Discover
+          </Link>
+          <div style={{ position: 'relative' }}>
           <button
+            suppressHydrationWarning
             onClick={() => setDropdownOpen(o => !o)}
             style={{
               display: 'flex',
@@ -101,12 +121,13 @@ export default function Navbar() {
               gap: '8px',
               padding: '4px 12px 4px 4px',
               borderRadius: '99px',
-              background: 'var(--bg-elevated)',
+              background: 'rgba(25, 37, 63, 0.5)',
               border: '1px solid var(--border-subtle)',
               cursor: 'pointer',
               color: 'var(--text-primary)',
               fontSize: '13px',
-              fontWeight: 500,
+              fontWeight: 600,
+              fontFamily: 'var(--font-mono)'
             }}
           >
             <img
@@ -119,55 +140,60 @@ export default function Navbar() {
               }}
             />
             {user?.user_name}
-            <span style={{ color: 'var(--text-muted)' }}>▾</span>
+            <span style={{ color: 'var(--secondary)' }}>▾</span>
           </button>
 
           {dropdownOpen && (
             <div
               style={{
                 position: 'absolute',
-                top: '44px',
+                top: '50px',
                 right: 0,
-                background: 'var(--bg-card)',
+                background: 'linear-gradient(135deg, rgba(20, 31, 55, 0.95) 0%, rgba(15, 25, 47, 0.98) 100%)',
                 border: '1px solid var(--border)',
                 borderRadius: '12px',
                 padding: '8px',
                 minWidth: '180px',
                 zIndex: 300,
-                animation: 'fadeIn 0.15s ease',
+                boxShadow: 'var(--shadow-glow)',
+                animation: 'fadeIn 0.2s ease',
+                backdropFilter: 'blur(16px)'
               }}
             >
               <Link
                 href="/dashboard"
                 onClick={() => setDropdownOpen(false)}
-                style={{ display: 'block', padding: '8px 12px', borderRadius: '8px', color: 'var(--text-secondary)', fontSize: '14px', textDecoration: 'none' }}
+                style={{ display: 'block', padding: '10px 12px', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '14px', textDecoration: 'none', fontFamily: 'var(--font-mono)' }}
               >
                 📋 My Dashboard
               </Link>
               <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
               <button
+                suppressHydrationWarning
                 onClick={() => { logout(); setDropdownOpen(false); router.push('/') }}
                 style={{
                   width: '100%',
                   textAlign: 'left',
-                  padding: '8px 12px',
+                  padding: '10px 12px',
                   borderRadius: '8px',
                   color: 'var(--danger)',
                   fontSize: '14px',
                   background: 'transparent',
                   border: 'none',
                   cursor: 'pointer',
+                  fontFamily: 'var(--font-mono)'
                 }}
               >
                 🚪 Log Out
               </button>
             </div>
           )}
+          </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', gap: '8px', marginLeft: '8px' }}>
-          <Link href="/login" className="btn btn-ghost btn-sm">Login</Link>
-          <Link href="/register" className="btn btn-primary btn-sm">Register</Link>
+        <div style={{ display: 'flex', gap: '12px', marginLeft: '16px' }}>
+          <Link href="/login" className="btn btn-ghost btn-sm" style={{ fontFamily: 'var(--font-mono)' }}>Login</Link>
+          <Link href="/register" className="btn btn-primary btn-sm" style={{ fontFamily: 'var(--font-mono)' }}>Initialize Uplink</Link>
         </div>
       )}
     </nav>

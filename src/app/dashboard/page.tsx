@@ -6,6 +6,7 @@ import { snippetApi } from '@/lib/snippetApi'
 import { authApi } from '@/lib/authApi'
 import SnippetCard from '@/components/snippet/SnippetCard'
 import toast from 'react-hot-toast'
+import FollowListModal from '@/components/follow/FollowListModal'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -19,6 +20,8 @@ export default function DashboardPage() {
   const [editImage, setEditImage] = useState<File | null>(null)
   const [editPreview, setEditPreview] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [myStats, setMyStats] = useState<any>(null)
+  const [followModal, setFollowModal] = useState<{ type: 'followers' | 'following' } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -33,18 +36,31 @@ export default function DashboardPage() {
     setLoading(true)
     snippetApi.getMySnippets({ page, limit: 12 })
       .then(res => {
-        setSnippets(res.data.data.snippets)
-        setTotalPages(res.data.data.totalPages)
+        const data = res.data.data
+        setSnippets(data.snippets)
+        setTotalPages(data.totalPages)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [page, isAuthenticated])
 
+  // Dedicated stats endpoint — single source of truth for all counts
+  useEffect(() => {
+    if (!_hasHydrated || !isAuthenticated) return
+    authApi.getMyStats()
+      .then(res => setMyStats(res.data.data))
+      .catch(err => console.error('[Stats]', err?.response?.data || err.message))
+  }, [_hasHydrated, isAuthenticated])
+
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this snippet?')) return
+    const isPublic = snippets.find(s => s._id === id)?.visibility === 'public'
     try {
       await snippetApi.delete(id)
       setSnippets(prev => prev.filter(s => s._id !== id))
+      if (isPublic) {
+         setProfileStats((prev: any) => prev ? { ...prev, publicSnippetCount: Math.max(0, prev.publicSnippetCount - 1) } : prev)
+      }
       toast.success('Snippet deleted')
     } catch {
       toast.error('Failed to delete snippet')
@@ -53,9 +69,19 @@ export default function DashboardPage() {
 
   const handleToggleVisibility = async (id: string) => {
     try {
+      const oldSnippet = snippets.find(s => s._id === id)
       const res = await snippetApi.toggleVisibility(id)
-      setSnippets(prev => prev.map(s => s._id === id ? { ...s, visibility: res.data.data.visibility } : s))
-      toast.success(`Now ${res.data.data.visibility}`)
+      const newVisibility = res.data.data.visibility
+      
+      setSnippets(prev => prev.map(s => s._id === id ? { ...s, visibility: newVisibility } : s))
+      
+      if (oldSnippet?.visibility === 'public' && newVisibility === 'private') {
+        setProfileStats((prev: any) => prev ? { ...prev, publicSnippetCount: Math.max(0, prev.publicSnippetCount - 1) } : prev)
+      } else if (oldSnippet?.visibility === 'private' && newVisibility === 'public') {
+        setProfileStats((prev: any) => prev ? { ...prev, publicSnippetCount: prev.publicSnippetCount + 1 } : prev)
+      }
+      
+      toast.success(`Now ${newVisibility}`)
     } catch {
       toast.error('Failed to update visibility')
     }
@@ -66,6 +92,7 @@ export default function DashboardPage() {
     try {
       await snippetApi.publish(id)
       setSnippets(prev => prev.map(s => s._id === id ? { ...s, visibility: 'public' } : s))
+      setProfileStats((prev: any) => prev ? { ...prev, publicSnippetCount: prev.publicSnippetCount + 1 } : prev)
       toast.success('Published to public feed! 🎉')
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to publish')
@@ -113,6 +140,25 @@ export default function DashboardPage() {
             </div>
             <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '4px' }}>{user?.user_email}</p>
             {user?.user_about && <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{user.user_about}</p>}
+            
+            {myStats && (
+              <div style={{ display: 'flex', gap: '16px', marginTop: '12px', fontSize: '13px', fontFamily: 'var(--font-mono)', flexWrap: 'wrap' }}>
+                <span style={{ color: 'var(--text-secondary)' }}><strong style={{ color: 'var(--primary)' }}>{myStats.publicSnippets ?? 0}</strong> Public Snippets</span>
+                <span style={{ color: 'var(--text-secondary)' }}><strong style={{ color: 'var(--primary)' }}>{myStats.totalSnippets ?? 0}</strong> Total Snippets</span>
+                <button
+                  onClick={() => setFollowModal({ type: 'followers' })}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: '13px', padding: 0 }}
+                >
+                  <strong style={{ color: 'var(--primary)' }}>{myStats.followerCount ?? 0}</strong> Followers
+                </button>
+                <button
+                  onClick={() => setFollowModal({ type: 'following' })}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: '13px', padding: 0 }}
+                >
+                  <strong style={{ color: 'var(--primary)' }}>{myStats.followingCount ?? 0}</strong> Following
+                </button>
+              </div>
+            )}
           </div>
           <button className="btn btn-ghost btn-sm" onClick={() => setShowEditModal(true)}>
             ✏️ Edit Profile
@@ -242,6 +288,15 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {followModal && user?.id && (
+        <FollowListModal
+          userId={user.id}
+          type={followModal.type}
+          count={followModal.type === 'followers' ? (myStats?.followerCount ?? 0) : (myStats?.followingCount ?? 0)}
+          onClose={() => setFollowModal(null)}
+        />
       )}
     </div>
   )

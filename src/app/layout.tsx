@@ -1,22 +1,22 @@
 import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Space_Grotesk, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import Navbar from "@/components/layout/Navbar"
 import { Toaster } from "react-hot-toast"
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] })
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] })
+const spaceGrotesk = Space_Grotesk({ variable: "--font-space", subsets: ["latin"] })
+const jetbrainsMono = JetBrains_Mono({ variable: "--font-mono", subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "CodeClan — Share & Discover Code Snippets",
-  description: "A platform for developers to share, discover, and collaborate on code snippets. Join groups, vote on snippets, and level up your coding skills.",
+  title: "CodeClan — The Sentient Terminal",
+  description: "A high-fidelity environment for elite developers to share code snippets.",
   keywords: "code snippets, programming, developer community, code sharing",
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <html lang="en" className={`${spaceGrotesk.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+      <body style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }} suppressHydrationWarning>
         <Navbar />
         <main style={{ flex: 1 }}>
           {children}
@@ -25,14 +25,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           position="bottom-right"
           toastOptions={{
             style: {
-              background: 'var(--bg-card)',
+              background: 'var(--bg-container-highest)',
               color: 'var(--text-primary)',
-              border: '1px solid var(--border)',
-              borderRadius: '10px',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
               fontSize: '14px',
+              fontFamily: 'var(--font-mono)',
+              backdropFilter: 'blur(12px)',
             },
-            success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
-            error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
+            success: { iconTheme: { primary: 'var(--secondary)', secondary: '#000' } },
+            error: { iconTheme: { primary: 'var(--danger)', secondary: '#000' } },
           }}
         />
       </body>

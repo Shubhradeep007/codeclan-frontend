@@ -71,17 +71,19 @@ export default function SnippetDetailPage() {
           <h1 className="page-title" style={{ marginBottom: '8px' }}>{snippet.snippet_title}</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             {snippet.created_by && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Link href={`/user/${snippet.created_by.user_name}`} style={{ display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}>
                 <img
                   src={snippet.created_by.user_profile_image?.startsWith('http')
                     ? snippet.created_by.user_profile_image
                     : `https://api.dicebear.com/8.x/initials/svg?seed=${snippet.created_by.user_name}`}
                   alt={snippet.created_by.user_name}
                   className="avatar"
-                  style={{ width: 24, height: 24 }}
+                  style={{ width: 24, height: 24, transition: '0.2s', border: '1px solid transparent' }}
+                  onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
+                  onMouseOut={(e) => e.currentTarget.style.borderColor = 'transparent'}
                 />
-                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{snippet.created_by.user_name}</span>
-              </div>
+                <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontFamily: 'var(--font-space)' }}>{snippet.created_by.user_name}</span>
+              </Link>
             )}
             <span style={{ color: 'var(--text-muted)' }}>•</span>
             <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>

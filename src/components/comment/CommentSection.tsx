@@ -4,6 +4,7 @@ import { commentApi } from '@/lib/commentApi'
 import { useAuthStore } from '@/store/authStore'
 import { formatDistanceToNow } from 'date-fns'
 import toast from 'react-hot-toast'
+import Link from 'next/link'
 
 interface Comment {
   _id: string
@@ -97,15 +98,19 @@ export default function CommentSection({ snippetId }: { snippetId: string }) {
         {comments.map(c => (
           <div key={c._id} className="card" style={{ padding: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <img
-                src={c.author_id.user_profile_image?.startsWith('http')
-                  ? c.author_id.user_profile_image
-                  : `https://api.dicebear.com/8.x/initials/svg?seed=${c.author_id.user_name}`}
-                alt={c.author_id.user_name}
-                className="avatar"
-                style={{ width: 28, height: 28 }}
-              />
-              <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)' }}>{c.author_id.user_name}</span>
+              <Link href={`/user/${c.author_id.user_name}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+                <img
+                  src={c.author_id.user_profile_image?.startsWith('http')
+                    ? c.author_id.user_profile_image
+                    : `https://api.dicebear.com/8.x/initials/svg?seed=${c.author_id.user_name}`}
+                  alt={c.author_id.user_name}
+                  className="avatar"
+                  style={{ width: 28, height: 28, transition: '0.2s', border: '1px solid transparent' }}
+                  onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
+                  onMouseOut={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                />
+                <span style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)', fontFamily: 'var(--font-space)' }}>{c.author_id.user_name}</span>
+              </Link>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: 'auto' }}>
                 {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
               </span>
