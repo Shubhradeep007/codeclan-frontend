@@ -46,4 +46,13 @@ export const groupApi = {
 
   assignSnippet: (groupId: string, snippetId: string) =>
     api.patch(`/api/group/${groupId}/snippets/${snippetId}`),
+
+  getPendingSnippets: (groupId: string) =>
+    api.get(`/api/group/${groupId}/snippets/pending`),
+
+  approveSnippet: (groupId: string, snippetId: string) =>
+    api.patch(`/api/group/${groupId}/snippets/${snippetId}/approve`),
+
+  rejectSnippet: (groupId: string, snippetId: string) =>
+    api.delete(`/api/group/${groupId}/snippets/${snippetId}/reject`),
 }

@@ -15,6 +15,8 @@ export default function GroupDetailPage() {
   const [group, setGroup] = useState<any>(null)
   const [members, setMembers] = useState<any[]>([])
   const [snippets, setSnippets] = useState<any[]>([])
+  const [pendingSnippets, setPendingSnippets] = useState<any[]>([])
+  const [activeTab, setActiveTab] = useState<'approved' | 'pending'>('approved')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -28,7 +30,7 @@ export default function GroupDetailPage() {
         ])
         setGroup(groupRes.data.data.group)
         setMembers(groupRes.data.data.members)
-        setSnippets(snippetsRes.data.data)
+        setSnippets(snippetsRes.data.data.snippets || [])
       } catch (err: any) {
         setError(err.response?.data?.message || 'Failed to load group')
       } finally {
@@ -37,6 +39,20 @@ export default function GroupDetailPage() {
     }
     fetchAll()
   }, [id, isAuthenticated])
+
+  const isOwner = group?.owner_id === user?.id
+  const currentUserMembership = members.find(m => m.user_id._id === user?.id)
+  const isViewer = currentUserMembership?.member_role === 'viewer'
+  const isModerator = currentUserMembership?.member_role === 'moderator'
+  const canModerate = isOwner || isModerator || user?.role === 'admin'
+
+  useEffect(() => {
+    if (canModerate && group) {
+      groupApi.getPendingSnippets(group._id)
+        .then(res => setPendingSnippets(res.data.data.snippets || []))
+        .catch(err => console.error('Failed to fetch pending', err))
+    }
+  }, [canModerate, group])
 
   const copyInvite = () => {
     if (group?.invite_code) {
@@ -48,7 +64,7 @@ export default function GroupDetailPage() {
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
       await groupApi.changeRole(group._id, userId, newRole)
-      setMembers(prev => prev.map(m => m.user_id._id === userId ? { ...m, role: newRole } : m))
+      setMembers(prev => prev.map(m => m.user_id._id === userId ? { ...m, member_role: newRole } : m))
       toast.success('Role updated')
     } catch {
       toast.error('Failed to change role')
@@ -84,7 +100,29 @@ export default function GroupDetailPage() {
     </div>
   )
 
-  const isOwner = group.owner_id === user?.id
+  const handleApprove = async (snippetId: string) => {
+    try {
+      await groupApi.approveSnippet(group._id, snippetId)
+      toast.success('Snippet approved!')
+      setPendingSnippets(prev => prev.filter(s => s._id !== snippetId))
+      // Refetch approved snippets
+      const res = await groupApi.getSnippets(group._id)
+      setSnippets(res.data.data.snippets || [])
+    } catch {
+      toast.error('Failed to approve snippet')
+    }
+  }
+
+  const handleReject = async (snippetId: string) => {
+    if (!confirm('Reject this snippet? It will be removed from the group.')) return
+    try {
+      await groupApi.rejectSnippet(group._id, snippetId)
+      toast.success('Snippet rejected')
+      setPendingSnippets(prev => prev.filter(s => s._id !== snippetId))
+    } catch {
+      toast.error('Failed to reject snippet')
+    }
+  }
 
   return (
     <div className="page-container">
@@ -117,23 +155,62 @@ export default function GroupDetailPage() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '32px', alignItems: 'start' }}>
-        {/* Snippets Column */}
-        <div style={{ gridColumn: '1 / span 2' }}>
-           <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-             Group Snippets
-             <a href="/snippets/create" className="btn btn-primary btn-sm">✨ Share Snippet</a>
-           </h2>
-           {snippets.length > 0 ? (
-             <div className="snippet-grid">
-               {snippets.map(s => <SnippetCard key={s._id} snippet={s} />)}
-             </div>
-           ) : (
-             <div className="empty-state card" style={{ padding: '40px 24px' }}>
-               <div className="icon">📄</div>
-               <p style={{ marginBottom: '12px' }}>No snippets shared in this group yet.</p>
-             </div>
-           )}
-        </div>
+         <div style={{ gridColumn: '1 / span 2' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                <span 
+                  onClick={() => setActiveTab('approved')} 
+                  style={{ cursor: 'pointer', opacity: activeTab === 'approved' ? 1 : 0.5, borderBottom: activeTab === 'approved' ? '2px solid var(--primary)' : 'none', paddingBottom: '4px' }}>
+                  Group Snippets
+                </span>
+                {canModerate && (
+                  <span 
+                    onClick={() => setActiveTab('pending')} 
+                    style={{ cursor: 'pointer', opacity: activeTab === 'pending' ? 1 : 0.5, borderBottom: activeTab === 'pending' ? '2px solid var(--warning)' : 'none', paddingBottom: '4px', color: 'var(--warning)' }}>
+                    Pending ({pendingSnippets.length})
+                  </span>
+                )}
+              </div>
+              
+              <a href={`/snippets/create?groupId=${group._id}`} className="btn btn-primary btn-sm">
+                {isViewer ? '📤 Submit Code' : '✨ Share Snippet'}
+              </a>
+            </h2>
+
+            {activeTab === 'approved' ? (
+              snippets.length > 0 ? (
+                <div className="snippet-grid">
+                  {snippets.map(s => <SnippetCard key={s._id} snippet={s} />)}
+                </div>
+              ) : (
+                <div className="empty-state card" style={{ padding: '40px 24px' }}>
+                  <div className="icon">📄</div>
+                  <p style={{ marginBottom: '12px' }}>No snippets shared in this group yet.</p>
+                </div>
+              )
+            ) : (
+              pendingSnippets.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {pendingSnippets.map(s => (
+                    <div key={s._id} style={{ position: 'relative' }}>
+                      <div style={{ pointerEvents: 'none' }}>
+                        <SnippetCard snippet={s} />
+                      </div>
+                      <div style={{ position: 'absolute', top: '24px', right: '16px', display: 'flex', gap: '8px', zIndex: 10 }}>
+                        <button className="btn btn-success btn-sm" style={{ padding: '6px 12px' }} onClick={() => handleApprove(s._id)}>✅ Approve</button>
+                        <button className="btn btn-danger btn-sm" style={{ padding: '6px 12px' }} onClick={() => handleReject(s._id)}>❌ Reject</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-state card" style={{ padding: '40px 24px' }}>
+                  <div className="icon">✅</div>
+                  <p style={{ marginBottom: '12px' }}>Approval queue is entirely empty!</p>
+                </div>
+              )
+            )}
+         </div>
 
         {/* Members Column */}
         <div>
@@ -149,7 +226,9 @@ export default function GroupDetailPage() {
                   />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{m.user_id.user_name}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{m.role}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
+                      {m.member_role || 'Member'}
+                    </div>
                   </div>
                   
                   {isOwner && m.user_id._id !== user?.id && (
@@ -157,11 +236,12 @@ export default function GroupDetailPage() {
                       <select 
                         className="input" 
                         style={{ padding: '4px 8px', fontSize: '12px', width: 'auto' }}
-                        value={m.role}
+                        value={m.member_role}
                         onChange={(e) => handleRoleChange(m.user_id._id, e.target.value)}
                       >
                         <option value="member">Member</option>
                         <option value="moderator">Mod</option>
+                        <option value="owner">Owner</option>
                       </select>
                       <button className="btn btn-danger btn-sm" onClick={() => handleRemoveMember(m.user_id._id)} style={{ padding: '4px 8px' }}>
                         ✕

@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Space_Grotesk, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import Navbar from "@/components/layout/Navbar"
+import Footer from "@/components/layout/Footer"
 import { Toaster } from "react-hot-toast"
 
 const spaceGrotesk = Space_Grotesk({ variable: "--font-space", subsets: ["latin"] })
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main style={{ flex: 1 }}>
           {children}
         </main>
+        <Footer />
         <Toaster
           position="bottom-right"
           toastOptions={{

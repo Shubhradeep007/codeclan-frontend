@@ -169,7 +169,7 @@ export default function SnippetCard({ snippet }: { snippet: Snippet }) {
         )}
 
         {/* Footer */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid var(--border-subtle)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)' }}>
           {/* Author */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {snippet.created_by && (
@@ -180,10 +180,10 @@ export default function SnippetCard({ snippet }: { snippet: Snippet }) {
                     : `https://api.dicebear.com/8.x/initials/svg?seed=${snippet.created_by.user_name}`}
                   alt={snippet.created_by.user_name}
                   className="avatar"
-                  style={{ width: 24, height: 24 }}
+                  style={{ width: 24, height: 24, border: '1px solid var(--border-subtle)' }}
                 />
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  {snippet.created_by.user_name}
+                  by <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{snippet.created_by.user_name}</span>
                 </span>
               </>
             )}
@@ -191,14 +191,21 @@ export default function SnippetCard({ snippet }: { snippet: Snippet }) {
 
           {/* Stats */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontFamily: 'var(--font-mono)' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            <span
+              data-tooltip="Total views"
+              style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'default' }}
+            >
               👁 {snippet.view_count}
             </span>
-            <span style={{ 
-              fontSize: '12px', 
-              color: snippet.vote_score > 0 ? 'var(--secondary)' : snippet.vote_score < 0 ? 'var(--danger)' : 'var(--text-muted)',
-              textShadow: snippet.vote_score > 0 ? '0 0 10px var(--secondary-glow)' : 'none'
-            }}>
+            <span
+              data-tooltip={snippet.vote_score > 0 ? 'Community score (upvoted)' : snippet.vote_score < 0 ? 'Community score (downvoted)' : 'Community score'}
+              style={{ 
+                fontSize: '12px', 
+                color: snippet.vote_score > 0 ? 'var(--secondary)' : snippet.vote_score < 0 ? 'var(--danger)' : 'var(--text-muted)',
+                textShadow: snippet.vote_score > 0 ? '0 0 10px var(--secondary-glow)' : 'none',
+                cursor: 'default'
+              }}
+            >
               ▲ {snippet.vote_score}
             </span>
           </div>

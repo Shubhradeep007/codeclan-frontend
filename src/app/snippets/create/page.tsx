@@ -1,9 +1,10 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { useAuthStore } from '@/store/authStore'
 import { snippetApi, Language } from '@/lib/snippetApi'
+import { groupApi } from '@/lib/groupApi'
 import toast from 'react-hot-toast'
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false })
@@ -25,6 +26,9 @@ const LANGUAGES: { value: Language; label: string; monaco: string }[] = [
 
 export default function CreateSnippetPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const groupId = searchParams.get('groupId')
+
   const { isAuthenticated, _hasHydrated } = useAuthStore()
   const [form, setForm] = useState({
     snippet_title: '',
@@ -32,10 +36,25 @@ export default function CreateSnippetPage() {
     snippet_language: 'js' as Language,
     snippet_description: '',
     snippet_tags: [] as string[],
-    visibility: 'private' as 'private' | 'public' | 'group',
+    visibility: (groupId ? 'group' : 'private') as 'private' | 'public' | 'group',
   })
   const [tagInput, setTagInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [myGroups, setMyGroups] = useState<any[]>([])
+  const [selectedGroupId, setSelectedGroupId] = useState(groupId || '')
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      groupApi.getMyGroups()
+        .then(res => {
+          setMyGroups(res.data.data)
+          if (!groupId && res.data.data.length > 0) {
+            setSelectedGroupId(res.data.data[0]._id)
+          }
+        })
+        .catch(err => console.error("Failed to fetch groups:", err))
+    }
+  }, [isAuthenticated, groupId])
 
   useEffect(() => {
     if (_hasHydrated && !isAuthenticated) {
@@ -61,11 +80,27 @@ export default function CreateSnippetPage() {
     e.preventDefault()
     if (!form.snippet_title.trim()) { toast.error('Title is required'); return }
     if (!form.snippet_code.trim()) { toast.error('Code is required'); return }
+    if (form.visibility === 'group' && !selectedGroupId) {
+      toast.error('Please select a group to post this snippet.')
+      return
+    }
     setLoading(true)
     try {
       const res = await snippetApi.create(form)
+      const newSnippetId = res.data.data._id
+
+      // If visibility remains 'group', assign it.
+      if (form.visibility === 'group' && selectedGroupId) {
+        try {
+          await groupApi.assignSnippet(selectedGroupId, newSnippetId)
+        } catch (assignErr) {
+          console.error("Failed to assign snippet to group:", assignErr)
+          toast.error("Snippet created, but failed to assign to group.")
+        }
+      }
+
       toast.success('Snippet created! 🎉')
-      router.push(`/snippets/${res.data.data._id}`)
+      router.push(`/snippets/${newSnippetId}`)
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to create snippet')
     } finally {
@@ -121,6 +156,21 @@ export default function CreateSnippetPage() {
               <option value="group">👥 Group</option>
             </select>
           </div>
+
+          {form.visibility === 'group' && (
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="label">Select Group *</label>
+              <select
+                id="snippet-group-select"
+                className="input"
+                value={selectedGroupId}
+                onChange={e => setSelectedGroupId(e.target.value)}
+              >
+                {myGroups.length === 0 && <option value="" disabled>No groups available</option>}
+                {myGroups.map(g => <option key={g._id} value={g._id}>{g.group_name}</option>)}
+              </select>
+            </div>
+          )}
         </div>
 
         <div className="form-group">

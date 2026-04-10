@@ -7,8 +7,7 @@ import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 
 const navLinks = [
-  { href: '/',           label: 'Public Feed',  icon: '🌐' },
-  // { href: '/search',     label: 'Search',       icon: '🔍' },
+  { href: '/discover',   label: 'Discover',     icon: '🔭' },
   { href: '/dashboard',  label: 'My Snippets',  icon: '📋', auth: true },
   { href: '/snippets/create', label: 'New Snippet', icon: '✨', auth: true },
   { href: '/groups',     label: 'Groups',       icon: '👥', auth: true },
@@ -65,6 +64,8 @@ export default function Navbar() {
           <Link
             key={link.href}
             href={link.href}
+            data-tooltip={link.label}
+            data-tooltip-pos="bottom"
             className={`sidebar-link ${pathname === link.href ? 'active' : ''}`}
             style={{ borderRadius: '8px', padding: '8px 16px', borderLeft: 'none' }}
           >
@@ -77,6 +78,8 @@ export default function Navbar() {
         {user?.role === 'admin' && (
           <Link
             href="/admin"
+            data-tooltip="Admin Panel"
+            data-tooltip-pos="bottom"
             style={{
               padding: '6px 12px',
               borderRadius: '8px',
@@ -96,8 +99,10 @@ export default function Navbar() {
       {/* Auth Section */}
       {isAuthenticated ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: '12px' }}>
-          <Link
-            href="/"
+          {/* <Link
+            href="/discover"
+            data-tooltip="Browse public snippets"
+            data-tooltip-pos="bottom"
             className="btn btn-primary btn-sm"
             style={{
               fontFamily: 'var(--font-mono)',
@@ -110,7 +115,7 @@ export default function Navbar() {
             }}
           >
             ⚡ Discover
-          </Link>
+          </Link> */}
           <div style={{ position: 'relative' }}>
           <button
             suppressHydrationWarning
@@ -131,7 +136,9 @@ export default function Navbar() {
             }}
           >
             <img
-              src={user?.user_profile_image?.startsWith('http') ? user.user_profile_image : '/default-avatar.png'}
+              src={user?.user_profile_image?.startsWith('http') 
+                ? user.user_profile_image 
+                : `https://api.dicebear.com/8.x/initials/svg?seed=${user?.user_name || 'Guest'}`}
               alt={user?.user_name}
               className="avatar"
               style={{ width: 28, height: 28 }}

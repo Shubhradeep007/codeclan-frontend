@@ -6,6 +6,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { snippetApi } from '@/lib/snippetApi'
+import { groupApi } from '@/lib/groupApi'
 import { useAuthStore } from '@/store/authStore'
 import VoteButtons from '@/components/snippet/VoteButtons'
 import CommentSection from '@/components/comment/CommentSection'
@@ -19,6 +20,9 @@ export default function SnippetDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [copyCodeMode, setCopyCodeMode] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [myGroups, setMyGroups] = useState<any[]>([])
+  const [sharingGroup, setSharingGroup] = useState(false)
 
   useEffect(() => {
     snippetApi.getById(id as string)
@@ -43,6 +47,30 @@ export default function SnippetDetailPage() {
     setCopyCodeMode(true)
     setTimeout(() => setCopyCodeMode(false), 2000)
     toast.success('Code copied!')
+  }
+
+  const openShareModal = async () => {
+    setShowShareModal(true)
+    try {
+      const res = await groupApi.getMyGroups()
+      setMyGroups(res.data.data)
+    } catch {
+      toast.error('Failed to fetch your groups')
+    }
+  }
+
+  const handleShareToGroup = async (groupId: string) => {
+    setSharingGroup(true)
+    try {
+      await groupApi.assignSnippet(groupId, snippet._id)
+      toast.success('Snippet shared to group!')
+      setShowShareModal(false)
+      setSnippet((prev: any) => ({ ...prev, visibility: 'group' }))
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to share snippet')
+    } finally {
+      setSharingGroup(false)
+    }
   }
 
   if (loading) return (
@@ -78,11 +106,13 @@ export default function SnippetDetailPage() {
                     : `https://api.dicebear.com/8.x/initials/svg?seed=${snippet.created_by.user_name}`}
                   alt={snippet.created_by.user_name}
                   className="avatar"
-                  style={{ width: 24, height: 24, transition: '0.2s', border: '1px solid transparent' }}
+                  style={{ width: 24, height: 24, transition: '0.2s', border: '1px solid var(--border-subtle)' }}
                   onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
-                  onMouseOut={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                  onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
                 />
-                <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontFamily: 'var(--font-space)' }}>{snippet.created_by.user_name}</span>
+                <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontFamily: 'var(--font-space)' }}>
+                  by <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{snippet.created_by.user_name}</span>
+                </span>
               </Link>
             )}
             <span style={{ color: 'var(--text-muted)' }}>•</span>
@@ -100,9 +130,14 @@ export default function SnippetDetailPage() {
           {(isOwner || isAdmin) && (
             <div style={{ display: 'flex', gap: '8px', marginLeft: '12px' }}>
               {isOwner && (
-                <Link href={`/snippets/${snippet._id}/edit`} className="btn btn-ghost btn-sm">
-                  ✏️ Edit
-                </Link>
+                <>
+                  <button className="btn btn-ghost btn-sm" onClick={openShareModal}>
+                    👥 Share to Group
+                  </button>
+                  <Link href={`/snippets/${snippet._id}/edit`} className="btn btn-ghost btn-sm">
+                    ✏️ Edit
+                  </Link>
+                </>
               )}
               <button className="btn btn-danger btn-sm" onClick={handleDelete}>
                 🗑 Delete
@@ -156,6 +191,35 @@ export default function SnippetDetailPage() {
       <div className="divider" />
 
       <CommentSection snippetId={snippet._id} />
+
+      {showShareModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div className="card" style={{ width: '400px', maxWidth: '90%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 'bold' }}>Share to Group</h3>
+              <button onClick={() => setShowShareModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+            </div>
+            {myGroups.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)' }}>You are not a member of any groups yet.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto' }}>
+                {myGroups.map(g => (
+                  <div key={g._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px' }}>
+                    <span style={{ fontWeight: 600 }}>{g.group_name}</span>
+                    <button 
+                      className="btn btn-primary btn-sm" 
+                      onClick={() => handleShareToGroup(g._id)}
+                      disabled={sharingGroup}
+                    >
+                      {sharingGroup ? 'Sharing...' : 'Share'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

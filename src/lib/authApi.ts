@@ -35,6 +35,8 @@ export const authApi = {
 
   resetPassword: (token: string, new_password: string) => api.post(`/api/users/reset-password/${token}`, { new_password }),
 
+  verifyEmail: (token: string) => api.get(`/api/users/verify-email/${token}`),
+
   deleteAccount: (id: string) =>
     api.delete(`/api/users/delete/${id}`),
 
